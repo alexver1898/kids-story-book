@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📚 Free Kids Story Book Generator</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+    min-height: 100vh;
+    color: white;
+    padding: 20px;
+  }
+  .container { max-width: 1000px; margin: 0 auto; }
+  h1 {
+    text-align: center;
+    font-size: 2.5em;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin: 20px 0;
+  }
+  .subtitle { text-align: center; color: #aaa; margin-bottom: 30px; }
+  
+  .controls {
+    background: rgba(255,255,255,0.05);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+    border: 1px solid rgba(255,255,255,0.1);
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+  }
+  .controls label { display: block; font-size: 0.85em; color: #aaa; margin-bottom: 6px; }
+  .controls select, .controls input {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: white;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 1em;
+    min-width: 200px;
+  }
+  .controls select option { background: #302b63; color: white; }
+  .controls button {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .controls button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+  }
+
+  .book-info {
+    background: rgba(255,255,255,0.05);
+    border-radius: 16px;
+    padding: 16px 24px;
+    margin-bottom: 24px;
+    border: 1px solid rgba(255,255,255,0.1);
+    display: none;
+  }
+  .book-info.show { display: block; }
+  .book-info .title { font-size: 1.3em; color: #667eea; margin-bottom: 6px; }
+  .book-info .moral { color: #aaa; font-style: italic; }
+
+  .book {
+    display: none;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .book.show { display: flex; }
+  
+  .page {
+    background: rgba(255,255,255,0.05);
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.1);
+    position: relative;
+  }
+  .page canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  .page-number {
+    position: absolute;
+    bottom: 12px;
+    right: 16px;
+    background: rgba(0,0,0,0.6);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.85em;
+    color: #ccc;
+  }
+  .page-text {
+    padding: 16px 24px;
+    font-size: 1.05em;
+    line-height: 1.6;
+    color: #e0e0e0;
+    background: rgba(0,0,0,0.3);
+  }
+
+  footer {
+    text-align: center;
+    padding: 30px;
+    color: #666;
+    font-size: 0.9em;
+  }
+  .loading {
+    text-align: center;
+    padding: 40px;
+    display: none;
+  }
+  .loading.show { display: block; }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 4px solid rgba(255,255,255,0.1);
+    border-top: 4px solid #667eea;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>📚 Free Kids Story Book Generator</h1>
+  <p class="subtitle">Pick a theme, add your child's name, and get a beautiful illustrated storybook!</p>
+
+  <div class="controls">
+    <div>
+      <label>📖 Choose a Story</label>
+      <select id="themeSelect">
+        <option value="space">Space Adventure — The Little Star</option>
+        <option value="jungle">Jungle Explorers — Milo the Brave Monkey</option>
+        <option value="ocean">Ocean Deep — Finn the Curious Fish</option>
+        <option value="dino">Dinosaur World — Daisy the Tiny Dino</option>
+        <option value="magic">Magic Forest — The Glowbug Who Lost Her Light</option>
+      </select>
+    </div>
+    <div>
+      <label>👶 Your Child's Name</label>
+      <input type="text" id="childName" placeholder="e.g. Sofia" />
+    </div>
+    <div>
+      <button onclick="generateBook()">✨ Generate My Story Book</button>
+    </div>
+  </div>
+
+  <div class="book-info" id="bookInfo">
+    <div class="title" id="bookTitle"></div>
+    <div class="moral" id="bookMoral"></div>
+  </div>
+
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <p>Generating your story book...</p>
+  </div>
+
+  <div class="book" id="bookContainer"></div>
+
+  <footer>Made with ❤️ — Free for everyone. Original stories and illustrations.</footer>
+</div>
+
+<script>
+// ─── STORIES ───
+const STORIES = {
+  space: {
+    title: "The Little Star Who Wanted to Shine",
+    colors: ["#0a0a32", "#1e1e50", "#3c2878"],
+    accent: "#ffd700",
+    char: "star",
+    moral: "You are already enough. Shine your own light.",
+    pages: [
+      "Little {name} was a tiny star in the big, dark sky. But she felt too small to shine like the others.",
+      '"I wish I could glow like the Great Sun," {name} sighed. A friendly comet named Comet swooshed by.',
+      '"You don\'t need to be big to shine bright," said Comet. "Even the smallest stars make the night beautiful."',
+      "That night, {name} tried her best. She twinkled and sparkled with all her might.",
+      "Down on Earth, a little girl looked up and smiled. 'Look, Mom! That little star is the prettiest one!'",
+      "{name} realized \u2014 you don't need to be the biggest. You just need to be YOU. And she shone brighter than ever.",
+    ],
+  },
+  jungle: {
+    title: "Milo the Brave Monkey",
+    colors: ["#143c14", "#28641e", "#3c8c32"],
+    accent: "#ffc832",
+    char: "monkey",
+    moral: "Bravery is doing the right thing, even when you're scared.",
+    pages: [
+      "{name} was a little monkey who lived in the big jungle. Everyone else seemed braver than him.",
+      "His friend Pippa the parrot could fly high. His cousin Rocco could swing fast. {name} just watched.",
+      "One day, the jungle river rose high. A little bunny was stuck on a rock, too scared to cross.",
+      "{name} was scared too. But he grabbed a vine and swung \u2014 THUMP \u2014 right onto the rock.",
+      "He held out his paw. 'Grab my hand!' The bunny jumped, and they both swung to safety together.",
+      "Back on land, everyone cheered. {name} learned: being brave isn't not being scared \u2014 it's helping anyway.",
+    ],
+  },
+  ocean: {
+    title: "Finn the Curious Fish",
+    colors: ["#0a1e46", "#143c6e", "#2864a0"],
+    accent: "#00ffc8",
+    char: "fish",
+    moral: "Curiosity leads to amazing discoveries. Never stop wondering.",
+    pages: [
+      "{name} was a tiny fish with BIG questions. 'What's above the water?' he asked. No one knew.",
+      "His friends said, 'Don't go up there \u2014 it's dangerous!' But {name} couldn't stop wondering.",
+      "One day, he swam up and up, through the blue water toward the light.",
+      "POP! He broke the surface. He saw the sun, the sky, and a huge ship sailing by.",
+      "A friendly seagull landed nearby. 'First time?' she asked. 'Welcome to the world above!'",
+      "{name} dove back down, his heart full of wonder. He told everyone: 'There's so much more out there!'",
+    ],
+  },
+  dino: {
+    title: "Daisy the Tiny Dino",
+    colors: ["#32461e", "#647832", "#a08c3c"],
+    accent: "#ff6432",
+    char: "dino",
+    moral: "Your size doesn't define your strength. Small can be mighty.",
+    pages: [
+      "{name} was the smallest dinosaur in the valley. The big dinos stomped and roared over her head.",
+      "When the herd played games, {name} was always left out. 'You're too little,' they'd say.",
+      "One day, a big rock rolled down and blocked the path to the watering hole. No one could move it.",
+      "{name} looked closer. She saw the rock was wedged against a small pebble. She kicked the pebble away.",
+      "CRACK! The big rock shifted and the path was clear! Everyone stared in surprise.",
+      '"Being small means you see things others miss," {name} smiled. And from that day, she was their secret hero.',
+    ],
+  },
+  magic: {
+    title: "The Glowbug Who Lost Her Light",
+    colors: ["#280f3c", "#501e64", "#8c3cb4"],
+    accent: "#ffc8ff",
+    char: "bug",
+    moral: "Your kindness is the brightest light you have.",
+    pages: [
+      "{name} was a glowbug who lit up the magic forest every night. But one evening, her light went out.",
+      "She tried shaking, wiggling, and even doing a little dance. Nothing. Her bottom just wouldn't glow.",
+      '"Without my light, I\'m just a bug," she cried. A wise old owl hooted softly.',
+      '"Your light isn\'t in your tail, little one. It\'s in your heart. Show kindness \u2014 that\'s real light."',
+      "{name} helped a lost caterpillar find its way home. She shared her berries with a hungry squirrel.",
+      "And then \u2014 FWOOM \u2014 her glow returned, brighter than ever. Because kindness lights up everything.",
+    ],
+  },
+};
+
+function drawStar(ctx, x, y, size, color) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const a = (i * 36 - 90) * Math.PI / 180;
+    const r = i % 2 === 0 ? size : size * 0.4;
+    ctx[i === 0 ? 'moveTo' : 'lineTo'](x + r * Math.cos(a), y + r * Math.sin(a));
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "#ffc832";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  // eyes
+  ctx.fillStyle = "#000";
+  ctx.beginPath(); ctx.arc(x - 10, y - 6, 3, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + 6, y - 6, 3, 0, Math.PI*2); ctx.fill();
+  // smile
+  ctx.strokeStyle = "#000";
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(x - 2, y + 5, 8, 0, Math.PI); ctx.stroke();
+}
+
+function drawMonkey(ctx, x, y, mainColor) {
+  ctx.fillStyle = "#8c5028";
+  ctx.beginPath(); ctx.ellipse(x, y - 10, 22, 25, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#783c1e";
+  ctx.beginPath(); ctx.ellipse(x, y + 25, 30, 25, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#b46432";
+  ctx.beginPath(); ctx.ellipse(x - 16, y - 28, 10, 10, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x + 16, y - 28, 10, 10, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#c89664";
+  ctx.beginPath(); ctx.ellipse(x, y - 12, 16, 14, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#000";
+  ctx.beginPath(); ctx.arc(x - 7, y - 14, 3, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + 7, y - 14, 3, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = "#000"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(x, y - 4, 8, 0.2, Math.PI - 0.2); ctx.stroke();
+  // tail
+  ctx.strokeStyle = "#783c1e"; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.arc(x + 30, y + 45, 25, 0, Math.PI); ctx.stroke();
+}
+
+function drawFish(ctx, x, y) {
+  ctx.fillStyle = "#3296c8";
+  ctx.beginPath(); ctx.ellipse(x, y, 30, 18, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#3296c8";
+  ctx.beginPath(); ctx.moveTo(x + 28, y - 14); ctx.lineTo(x + 50, y); ctx.lineTo(x + 28, y + 14); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "white";
+  ctx.beginPath(); ctx.arc(x + 12, y - 5, 7, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#000";
+  ctx.beginPath(); ctx.arc(x + 14, y - 5, 3.5, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#286e96";
+  ctx.beginPath(); ctx.moveTo(x - 5, y - 17); ctx.lineTo(x + 5, y - 28); ctx.lineTo(x + 10, y - 17); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = "#000"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(x + 10, y + 2, 6, 0, Math.PI); ctx.stroke();
+}
+
+function drawDino(ctx, x, y) {
+  ctx.fillStyle = "#50a050";
+  ctx.beginPath(); ctx.ellipse(x, y + 15, 28, 22, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#50a050";
+  ctx.beginPath(); ctx.ellipse(x - 22, y - 12, 20, 22, 0, 0, Math.PI*2); ctx.fill();
+  for (let i = -1; i <= 1; i++) {
+    ctx.fillStyle = "#3c783c";
+    ctx.beginPath(); ctx.moveTo(x + i*10 - 2, y + 5); ctx.lineTo(x + i*10, y - 10); ctx.lineTo(x + i*10 + 8, y + 5); ctx.closePath(); ctx.fill();
+  }
+  ctx.fillStyle = "white";
+  ctx.beginPath(); ctx.arc(x - 22, y - 14, 5, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#000";
+  ctx.beginPath(); ctx.arc(x - 21, y - 13, 2.5, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = "#000"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(x - 22, y - 2, 6, 0.2, Math.PI - 0.2); ctx.stroke();
+  ctx.strokeStyle = "#50a050"; ctx.lineWidth = 8;
+  ctx.beginPath(); ctx.arc(x + 28, y + 15, 22, 0, 1.6); ctx.stroke();
+}
+
+function drawBug(ctx, x, y) {
+  ctx.fillStyle = "#503c64";
+  ctx.beginPath(); ctx.ellipse(x, y - 5, 14, 16, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#b496c8";
+  ctx.beginPath(); ctx.ellipse(x - 18, y - 12, 12, 8, 0.3, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x + 18, y - 12, 12, 8, -0.3, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#ffff96";
+  ctx.beginPath(); ctx.ellipse(x, y + 10, 12, 10, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#000";
+  ctx.beginPath(); ctx.arc(x - 5, y - 10, 2.5, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + 5, y - 10, 2.5, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = "#503c64"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x - 3, y - 9); ctx.lineTo(x - 7, y - 14); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x + 3, y - 9); ctx.lineTo(x + 7, y - 14); ctx.stroke();
+}
+
+const CHAR_DRAWERS = {
+  star: drawStar,
+  monkey: drawMonkey,
+  fish: drawFish,
+  dino: drawDino,
+  bug: drawBug,
+};
+
+function drawPage(storyKey, pageIdx, name) {
+  const story = STORIES[storyKey];
+  const text = story.pages[pageIdx].replace(/\{name\}/g, name || "Luna");
+  const total = story.pages.length;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 800;
+  canvas.height = 600;
+  const ctx = canvas.getContext('2d');
+
+  // Background gradient
+  const grad = ctx.createLinearGradient(0, 0, 0, 600);
+  story.colors.forEach((c, i) => {
+    grad.addColorStop(i / (story.colors.length - 1), c);
+  });
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 800, 600);
+
+  // Stars
+  for (let i = 0; i < 20; i++) {
+    ctx.fillStyle = "rgba(255,255,255," + (0.3 + Math.random() * 0.5) + ")";
+    ctx.beginPath();
+    ctx.arc(Math.random() * 800, Math.random() * 280, 1 + Math.random() * 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Decorations
+  drawDecorations(ctx, storyKey, 800, 600);
+
+  // Character
+  const charX = 400, charY = 220 + pageIdx * 4;
+  const charColor = story.accent;
+  const drawer = CHAR_DRAWERS[story.char];
+  if (drawer) drawer(ctx, charX, charY, charColor);
+
+  // Ground
+  ctx.strokeStyle = story.accent;
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(0, charY + 45); ctx.lineTo(800, charY + 45); ctx.stroke();
+
+  // Text box
+  ctx.fillStyle = "rgba(0,0,0,0.7)";
+  roundRect(ctx, 30, 430, 740, 140, 20);
+  ctx.fill();
+  ctx.strokeStyle = story.accent;
+  ctx.lineWidth = 2;
+  roundRect(ctx, 30, 430, 740, 140, 20);
+  ctx.stroke();
+
+  // Page number
+  ctx.fillStyle = story.accent;
+  ctx.font = "14px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(`${pageIdx + 1} / ${total}`, 400, 450);
+
+  // Story text
+  ctx.fillStyle = "white";
+  ctx.font = "18px/1.6 'Segoe UI', sans-serif";
+  ctx.textAlign = "center";
+
+  const words = text.split(' ');
+  let lines = [];
+  let line = '';
+  for (const word of words) {
+    const test = line + ' ' + word;
+    if (ctx.measureText(test).width > 680) {
+      lines.push(line.trim());
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+  lines.push(line.trim());
+
+  let yOff = 474;
+  for (const l of lines) {
+    ctx.fillText(l, 400, yOff);
+    yOff += 28;
+  }
+
+  // Wrap in a page div
+  const pageDiv = document.createElement('div');
+  pageDiv.className = 'page';
+  pageDiv.appendChild(canvas);
+  return pageDiv;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function drawDecorations(ctx, storyKey, W, H) {
+  if (storyKey === 'space') {
+    ctx.fillStyle = "#c8c864";
+    ctx.beginPath(); ctx.arc(W - 100, 80, 50, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#b4b450";
+    ctx.beginPath(); ctx.arc(W - 90, 70, 20, 0, Math.PI * 2); ctx.fill();
+  } else if (storyKey === 'jungle') {
+    [30, 70, 130, W-100, W-60].forEach(x => {
+      ctx.fillStyle = "#50280a";
+      ctx.fillRect(x-5, H/2-50, 12, 120);
+      ctx.fillStyle = "#146414";
+      ctx.beginPath();
+      ctx.ellipse(x+1, H/2-70, 35, 50, 0, 0, Math.PI*2);
+      ctx.fill();
+    });
+  } else if (storyKey === 'ocean') {
+    ctx.strokeStyle = "rgba(100, 200, 255, 0.3)";
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 15; i++) {
+      const bx = Math.random() * W, by = Math.random() * H;
+      const br = 5 + Math.random() * 15;
+      ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI*2); ctx.stroke();
+    }
+  } else if (storyKey === 'dino') {
+    ctx.fillStyle = "#643214";
+    ctx.beginPath();
+    ctx.moveTo(W/3-30, H/2+50);
+    ctx.lineTo(W/2, H/2-100);
+    ctx.lineTo(2*W/3+30, H/2+50);
+    ctx.closePath();
+    ctx.fill();
+  } else if (storyKey === 'magic') {
+    ctx.fillStyle = "#ffc8ff";
+    for (let i = 0; i < 10; i++) {
+      const sx = Math.random() * W, sy = Math.random() * H/2;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy-8);
+      ctx.lineTo(sx+3, sy-2);
+      ctx.lineTo(sx+8, sy);
+      ctx.lineTo(sx+3, sy+2);
+      ctx.lineTo(sx, sy+8);
+      ctx.lineTo(sx-3, sy+2);
+      ctx.lineTo(sx-8, sy);
+      ctx.lineTo(sx-3, sy-2);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+}
+
+function generateBook() {
+  const themeKey = document.getElementById('themeSelect').value;
+  const name = document.getElementById('childName').value.trim() || '';
+  const story = STORIES[themeKey];
+
+  document.getElementById('loading').classList.add('show');
+  document.getElementById('bookContainer').classList.remove('show');
+  document.getElementById('bookInfo').classList.remove('show');
+
+  setTimeout(() => {
+    const container = document.getElementById('bookContainer');
+    container.innerHTML = '';
+
+    // Generate all pages
+    for (let i = 0; i < story.pages.length; i++) {
+      const pageEl = drawPage(themeKey, i, name);
+      container.appendChild(pageEl);
+    }
+
+    // Show book info
+    document.getElementById('bookTitle').textContent = story.title + (name ? ` for ${name}` : '');
+    document.getElementById('bookMoral').textContent = `✨ ${story.moral} ✨`;
+    document.getElementById('bookInfo').classList.add('show');
+
+    document.getElementById('loading').classList.remove('show');
+    container.classList.add('show');
+
+    // Scroll to book
+    container.scrollIntoView({ behavior: 'smooth' });
+  }, 600);
+}
+
+// Generate on load
+window.addEventListener('DOMContentLoaded', () => generateBook());
+</script>
+</body>
+</html>
